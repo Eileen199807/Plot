@@ -1,0 +1,133 @@
+---
+title: "Phylogenetic tree plot"
+author: "Wanlin, lwleen@hku.hk"
+ourput: html_document
+note: code should be changed due to different situations, and the code ownership belongs to the Wupeng's group of the University of Hong Kong
+---
+
+
+```{r message=FALSE}
+library(ggtreeExtra)
+library(ggtree)
+library(ggplot2)
+library(ggnewscale)
+library(treeio)
+library(tidytree)
+library(dplyr)
+library(ggstar)
+library(TDbook)
+library(gtools) 
+library(treedataverse)
+library(purrr)
+library(ape)
+library(phangorn)
+library(readxl)
+library(RColorBrewer)
+library(wesanderson)
+```
+
+```{r setup, include=FALSE}
+tre_name = list.files(path="C:/Users/liuwa/Desktop/Second_264", pattern=".tre", all.files=TRUE,full.names=TRUE)
+```
+
+ECOLI RESULT 
+
+```{r}
+ECOLI_anno = read_excel("C:/Users/liuwa/Desktop/Second_264/ECOLI_annotation_new.xlsx")
+ECOLI_antibiogram = read_excel("C:/Users/liuwa/Desktop/Second_264/SAURS_selection.xlsx")
+ECOLI_tree = phytools::read.newick(tre_name[1])
+ECOLI_tree_midroot <- phangorn::midpoint(ECOLI_tree)
+```
+
+```{r}
+ID_order <- match(ECOLI_tree_midroot$tip.label, ECOLI_anno$ID)
+ECOLI_anno_sorted <- ECOLI_anno[ID_order, ]
+max_ID_width <- max(nchar(ECOLI_anno_sorted$ID),na.rm = TRUE)
+max_ST_width <- max(nchar(ECOLI_anno_sorted$ST),na.rm = TRUE)
+max_Location_width <- max(nchar(ECOLI_anno_sorted$Location),na.rm = TRUE)
+formatted_ID <- sprintf("%-*s", max_ID_width, ECOLI_anno_sorted$ID)
+formatted_ST <- sprintf("%-*s", max_ST_width, ECOLI_anno_sorted$ST)
+formatted_Location <- sprintf("%-*s", max_Location_width, ECOLI_anno_sorted$Location)
+ID_combined <- paste(formatted_ID, formatted_ST, formatted_Location, sep=" ")
+ECOLI_anno_sorted$ID = ID_combined 
+ECOLI_anno_sorted$MIC_Sum = round(ECOLI_anno_sorted$MIC_Sum)
+ECOLI_info = data.frame(ECOLI_anno_sorted)
+ECOLI_info$Drug_Class <- as.integer(ECOLI_info$Drug_Class)
+ECOLI_tree_midroot$tip.label <- ID_combined 
+node_labels_numeric <- as.numeric(ECOLI_tree_midroot$node.label)
+ECOLI_tree_midroot$node.label <- ifelse(node_labels_numeric >= 0.70, ECOLI_tree_midroot$node.label, "")
+ECOLI_tree_midroot$node.label <- ifelse(ECOLI_tree_midroot$node.label != "", round(node_labels_numeric * 100), "")
+```
+
+```{r warning=FALSE}
+p0.1 <- ggtree(ECOLI_tree_midroot) + geom_nodelab(hjust=1.4, vjust=1.2, size=3) + geom_tiplab(aes(color=Group),family = 'mono', linetype = "dotted", linesize = .4, size=3, offset=0.0003, hjust=0, align=T, face="bold") + scale_color_manual(values = c("amr_data" = "red", "reference" = "black"))
+p <- p0.1 + new_scale_color()
+```
+
+```{r warning=FALSE}
+
+p <- p %<+% ECOLI_info +
+  geom_tippoint(aes(x + 0.0002, color=Type2),size=4, stroke = 1) +
+  scale_color_manual(values = c("Vegetables" = "#66ce58", "Wastewater" = "#3933FF", "Chicken" = "#bf8bf0", "Pork" = "#ff8ddd", "Fish" = "#CCDFF1", "Human" = "#FDC086", "Poultry" = "#6A3D9A", "Swine" = "#F0027F", "Bovine" = "#8b4513"), breaks = c("Wastewater","Fish","Chicken","Pork","Vegetables", "Human","Poultry","Swine","Bovine")) +
+  labs(color = "Type") +
+  scale_x_continuous(name="Escherichia Coli") +
+  theme(legend.title = element_text(size = 23),legend.text = element_text(size = 21))+ ylim(0.00072, NA) 
+
+p1.5 <- p + new_scale_fill() 
+```
+
+```{r warning=FALSE}
+Source <- ECOLI_info %>% select(c("ID","Source"))
+rownames(Source) <- Source$ID
+Source = Source %>% select(Source)
+
+p2 <- gheatmap(p1.5,  Source, offset = 0.0071, width=.022, colnames_position="top", colnames_angle = 90, colnames_offset_y = 0.5 , hjust=0.3, font.size=3) + scale_fill_manual(values=c("Local"="#93003A","Import"="#66CCFF"), na.value="white", name="Food Source", breaks = c("Local","Import")) + theme(legend.title = element_text(size = 11),legend.text = element_text(size = 11))
+p2.5 <- p2 + new_scale_fill() 
+```
+
+
+```{r warning=FALSE}
+ARG <- ECOLI_info %>% select(c("ID","ARGs"))
+rownames(ARG) <- ARG$ID
+ARG =ARG %>% select(ARGs)
+
+p3 <- gheatmap(p2.5, ARG,  offset = 0.0047,width=.022, colnames_position="top", colnames_angle = 90, colnames_offset_y = 1.1, hjust=0.3, font.size=3) + scale_fill_viridis_c(option = "plasma", name = "No. of ARGs", limits = c(0,80), values = scales::rescale(c(0, 25, 25, 80)),breaks=c(0, 20, 40, 60,80), labels=format(c(0, 20, 40, 60,80)))
+p3.5 <- p3 + new_scale_fill() 
+
+```
+
+```{r warning=FALSE}
+CLASS <- ECOLI_info %>% select(c("ID","Drug_Class"))
+rownames(CLASS) <- CLASS$ID
+CLASS = CLASS %>% select(Drug_Class)
+
+p4 <- gheatmap(p3.5, CLASS, offset = 0.0055,width=.022,  colnames_position="top", colnames_angle = 90, colnames_offset_y = 1.1 , hjust=0.3, font.size=3) + scale_fill_viridis_c(na.value="white", name = "No. of Drug Class",  limits = c(0,12), breaks=c(0,3,6,9,12), labels=format(c(0,3,6,9,12))) 
+p4.5 <- p4 + new_scale_fill()
+
+```
+
+```{r warning=FALSE}
+MIC <- ECOLI_info %>% select(c("ID","MIC_Sum"))
+rownames(MIC) <- MIC$ID
+MIC = MIC %>% select(MIC_Sum)
+
+pal <- wes_palette("Zissou1", 15, type = "continuous")
+p5 <- gheatmap(p4.5, MIC, offset = 0.0063,width=.022, colnames_position="top", colnames_angle = 90, colnames_offset_y = 1.1 , hjust=0.3, font.size=3) + scale_fill_gradientn(colours = pal, na.value="white", name = "MIC_Sum", limits = c(0, 230), breaks=c(10,80,150,220), labels=format(c(10,80,150,220))) 
+
+```
+
+```{r warning=FALSE}
+SAURS_antibiogram_sorted <- as.data.frame(SAURS_antibiogram_sorted)
+rownames(SAURS_antibiogram_sorted) <- SAURS_antibiogram_sorted$ID
+SAURS_heatmap <- SAURS_antibiogram_sorted[2:17]
+p6 <- gheatmap(p5.5, SAURS_heatmap, offset=0.0047, width=0.15,colnames=TRUE, legend_title="ARG",colnames_position="top", colnames_offset_y = 1.1, colnames_angle = 90,font.size=5) + scale_fill_gradientn(colours = c("#7C878EFF", "#FFCD00FF", "#CC0C00FF"),
+                       breaks = c(0, 1, 2),
+                       labels = c("Susceptible", "Intermediate", "Resistant"),
+                       na.value="white", name="genotype")
+```
+
+```{r fig.width = 20, fig.height = 32}
+pdf("ECOLI.pdf",width =24, height = 20)
+p5 + guides(color = guide_legend(order = 2))+ geom_treescale(x = 0, y = 1, offset = 2, fontsize = 3, linesize = 2, color = "black")
+dev.off()
+```
