@@ -1,0 +1,141 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(vegan) 
+library(ggplot2)
+library(tidyverse)
+library(ape) 
+genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_species.motus.txt",sep = "\t", header = FALSE,row.names = 1)
+#genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_merge_species_table.txt",sep = "\t", header = FALSE,row.names = 1)
+names(genus_num) <- c("CA034","CB012","CB014","CB031","CB038","CB059","CB158","CB159","CB161","CB211","CB646_131S","CB646_212S","CB711","CB783","CB850","CB853","CB895","CB917","CB918","CB985","CH010","CH011","CH015","CX146","CX149","CZ033","CZ050","CZ120","CZ121")
+handle_raw_food_column_order <- c("CA034","CB012","CB031","CB038","CB059","CB158","CB159","CB161","CB211","CB646_131S","CB646_212S","CB711","CB850","CB853","CB895","CB917","CB985","CH011","CH015","CX146","CZ033","CZ120","CZ121","CB014","CB783","CB918","CH010","CX149","CZ050")
+
+sorted_df <- genus_num[, handle_raw_food_column_order]
+bray.dist = vegdist(t(sorted_df), method="bray")
+jay.h.pc <- pcoa(bray.dist)
+jay.h.pcoa <- jay.h.pc$vectors
+jay.pcoa <- data.frame(jay.h.pcoa[,1:2]) %>%
+  mutate(Treatments = c(rep('A', 21), rep('B', 8)))
+jay <- bray.dist
+env <- select(jay.pcoa, Treatments)
+
+
+permanova2 <- adonis2(jay ~ Treatments, data = env, permutations = 999,method="bray")
+fcnames2 <- row.names(permanova2)
+lab <- paste('PERMANOVA2\n',fcnames2[1],':R^2=',round(permanova2[1,3],4),' p=', 
+              round(permanova2[1,5],4))
+
+
+ggplot(jay.pcoa, aes(x=Axis.1, y=Axis.2, colour=Treatments)) + 
+  geom_point(size=5) +  stat_ellipse(level = 0.9) +
+  geom_text(aes(label = rownames(jay.pcoa)), size = 3, vjust = 1.5, hjust = 0.5) + # Add labels for sample names
+  theme_bw()+theme(panel.grid.major=element_line(colour=NA), panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), panel.grid.minor = element_blank())+
+  # 把两个轴的贡献度写出来
+  xlab(paste('Axis.1: ', round(jay.h.pc$values$Relative_eig[1],3)*100, '%', sep = '')) +
+  ylab(paste('Axis.2: ', round(jay.h.pc$values$Relative_eig[2],3)*100, '%', sep = '')) +
+  theme(panel.background = element_rect(fill = "transparent",colour = NA),
+        aspect.ratio = 1) +
+  # 用annotate把双因素结果写在左上角
+  annotate(geom = 'text',label = lab, size =4,
+           x = min(jay.pcoa$Axis.1), y = max(jay.pcoa$Axis.2),
+           hjust = 0,
+           vjust =1)
+
+```
+
+```{r}
+library(vegan) 
+library(ggplot2)
+library(tidyverse)
+library(ape) 
+genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_species.motus.txt",sep = "\t", header = FALSE,row.names = 1)
+#genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_merge_species_table.txt",sep = "\t", header = FALSE,row.names = 1)
+names(genus_num) <- c("CA034","CB012","CB014","CB031","CB038","CB059","CB158","CB159","CB161","CB211","CB646_131S","CB646_212S","CB711","CB783","CB850","CB853","CB895","CB917","CB918","CB985","CH010","CH011","CH015","CX146","CX149","CZ033","CZ050","CZ120","CZ121")
+meat_order <- c("CB012","CB014","CB038","CB059","CB783","CB853","CB985","CH010","CH011","CH015","CX146","CX149","CZ033","CZ050","CA034","CB031","CB158","CB159","CB161","CB211","CB646_131S","CB646_212S","CB711","CB850","CB895","CB917","CB918","CZ120","CZ121")
+sorted_df <- genus_num[, meat_order]
+
+bray.dist = vegdist(t(sorted_df), method="bray")
+jay.h.pc <- pcoa(bray.dist)
+jay.h.pcoa <- jay.h.pc$vectors
+jay.pcoa <- data.frame(jay.h.pcoa[,1:2]) %>%
+  mutate(Treatments = c(rep('A', 14), rep('B', 15)))
+jay <- bray.dist
+env <- select(jay.pcoa, Treatments)
+
+#获取单因素的数据（方式一）
+permanova <- adonis(jay ~ Treatments, data = env, permutations = 999,method="bray")
+fcnames <- row.names(permanova$aov.tab)
+lab <- paste('PERMANOVA\n',fcnames[1],':R^2=',round(permanova$aov.tab[1,5],4),' p=', 
+             round(permanova$aov.tab[1,6],4), sep = '')
+#获取单因素的数据（方式二）
+permanova2 <- adonis2(jay ~ Treatments, data = env, permutations = 999,method="bray")
+fcnames2 <- row.names(permanova2)
+lab2 <- paste('PERMANOVA2\n',fcnames2[1],':R^2=',round(permanova2[1,3],4),' p=', 
+              round(permanova2[1,5],4))
+
+
+ggplot(jay.pcoa, aes(x=Axis.1, y=Axis.2, colour=Treatments)) + 
+  geom_point(size=5) +  stat_ellipse(level = 0.9) +
+  theme_bw()+theme(panel.grid.major=element_line(colour=NA), panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), panel.grid.minor = element_blank())+
+  # 把两个轴的贡献度写出来
+  xlab(paste('Axis.1: ', round(jay.h.pc$values$Relative_eig[1],3)*100, '%', sep = '')) +
+  ylab(paste('Axis.2: ', round(jay.h.pc$values$Relative_eig[2],3)*100, '%', sep = '')) +
+  theme(panel.background = element_rect(fill = "transparent",colour = NA),
+        aspect.ratio = 1) +
+  # 用annotate把双因素结果写在左上角
+  annotate(geom = 'text',label = lab2, size =4,
+           x = min(jay.pcoa$Axis.1), y = max(jay.pcoa$Axis.2),
+           hjust = 0,
+           vjust =1)
+
+```
+
+```{r}
+library(vegan) 
+library(ggplot2)
+library(tidyverse)
+library(ape) 
+#genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_merge_family_table.txt",sep = "\t", header = FALSE,row.names = 1)
+genus_num <- read.csv("/Users/lwl1998/Desktop/meta/HUM_species.motus.txt",sep = "\t", header = FALSE,row.names = 1)
+names(genus_num) <- c("CA034","CB012","CB014","CB031","CB038","CB059","CB158","CB159","CB161","CB211","CB646_131S","CB646_212S","CB711","CB783","CB850","CB853","CB895","CB917","CB918","CB985","CH010","CH011","CH015","CX146","CX149","CZ033","CZ050","CZ120","CZ121")
+sex_order <- c("CB161","CB646_131S","CB646_212S","CB853","CH010","CH015","CZ050","CA034","CB012","CB014","CB031","CB038","CB059","CB158","CB159","CB211","CB711","CB783","CB850","CB895","CB917","CB918","CB985","CH011","CX146","CX149","CZ033","CZ120","CZ121")
+sorted_df <- genus_num[, sex_order]
+
+bray.dist = vegdist(t(sorted_df), method="bray")
+jay.h.pc <- pcoa(bray.dist)
+jay.h.pcoa <- jay.h.pc$vectors
+jay.pcoa <- data.frame(jay.h.pcoa[,1:2]) %>%
+  mutate(Treatments = c(rep('A', 7), rep('B', 22)))
+jay <- bray.dist
+env <- select(jay.pcoa, Treatments)
+
+#获取单因素的数据（方式一）
+permanova <- adonis(jay ~ Treatments, data = env, permutations = 999,method="bray")
+fcnames <- row.names(permanova$aov.tab)
+lab <- paste('PERMANOVA\n',fcnames[1],':R^2=',round(permanova$aov.tab[1,5],4),' p=', 
+             round(permanova$aov.tab[1,6],4), sep = '')
+#获取单因素的数据（方式二）
+permanova2 <- adonis2(jay ~ Treatments, data = env, permutations = 999,method="bray")
+fcnames2 <- row.names(permanova2)
+lab2 <- paste('PERMANOVA2\n',fcnames2[1],':R^2=',round(permanova2[1,3],4),' p=', 
+              round(permanova2[1,5],4))
+
+
+ggplot(jay.pcoa, aes(x=Axis.1, y=Axis.2, colour=Treatments)) + 
+  geom_point(size=5) +  stat_ellipse(level = 0.9) +
+  theme_bw()+theme(panel.grid.major=element_line(colour=NA), panel.background = element_rect(fill = "transparent",colour = NA), plot.background = element_rect(fill = "transparent",colour = NA), panel.grid.minor = element_blank())+
+  # 把两个轴的贡献度写出来
+  xlab(paste('Axis.1: ', round(jay.h.pc$values$Relative_eig[1],3)*100, '%', sep = '')) +
+  ylab(paste('Axis.2: ', round(jay.h.pc$values$Relative_eig[2],3)*100, '%', sep = '')) +
+  theme(panel.background = element_rect(fill = "transparent",colour = NA),
+        aspect.ratio = 1) +
+  # 用annotate把双因素结果写在左上角
+  annotate(geom = 'text',label = lab, size =4,
+           x = min(jay.pcoa$Axis.1), y = max(jay.pcoa$Axis.2),
+           hjust = 0,
+           vjust =1)
+
+```
